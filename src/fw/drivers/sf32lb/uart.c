@@ -24,8 +24,7 @@
 #include "system/passert.h"
 #include "uart_definitions.h"
 
-#define container_of(ptr, type, member) \
-    ((type *)((char *)(ptr) - offsetof(type, member)))
+static UARTDeviceState * s_uart_dev_ptr[6] = {0};
 
 typedef enum {
   UART_FullDuplex = 0,
@@ -140,6 +139,34 @@ static UARTPinFunction_t get_uart_pin_fun(UART_HandleTypeDef *uart) {
   return pin_fun;
 }
 
+static uint32_t get_uart_index(UART_HandleTypeDef *uart) {
+  if (uart->Instance == USART1) {
+    return 0;
+  } else if (uart->Instance == USART2) {
+    return 0;
+  } else if (uart->Instance == USART3) {
+    return 0;
+  }
+#ifdef USART4
+  else if (uart->Instance == USART4) {
+    return 0;
+  }
+#endif
+#ifdef USART5
+  else if (uart->Instance == USART5) {
+    return 0;
+  }
+#endif
+#ifdef USART6
+  else if (uart->Instance == USART6) {
+    return 0;
+  }
+#endif
+  else {
+    WTF;
+  }
+}
+
 static void prv_init(UARTDevice *dev, UARTInitMode_t mode) {
   if (mode == UART_FullDuplex) {
     dev->periph->Init.Mode = UART_MODE_TX_RX;
@@ -150,6 +177,8 @@ static void prv_init(UARTDevice *dev, UARTInitMode_t mode) {
     // Initialization Error
     WTF;
   }
+
+  s_uart_dev_ptr[get_uart_index(dev->periph)] = dev->state;
 
   UARTPinFunction_t pin_fun = get_uart_pin_fun(dev->periph);
   switch (mode) {
@@ -378,10 +407,9 @@ void uart_clear_all_interrupt_flags(UARTDevice *dev) {
 
 void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
   //TODO: need to find a way to convert huart to dev as dev is not container of huart
-#if 0  
   size_t recv_len;
   size_t recv_total_index;
-  UARTDevice *dev = container_of(huart, UARTDevice, periph);
+  UARTDevice *dev = s_uart_dev_ptr[get_uart_index(huart)];
 
   recv_total_index = dev->state->rx_dma_length - __HAL_DMA_GET_COUNTER(dev->rx_dma);
   if (recv_total_index < dev->state->rx_dma_index)
@@ -398,7 +426,6 @@ void HAL_UART_RxHalfCpltCallback(UART_HandleTypeDef *huart) {
       }
     }
   }
-#endif    
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) { 
